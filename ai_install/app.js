@@ -2,6 +2,7 @@
   os: null,
   tool: null,
   editor: null,
+  pack: null,
   current: 0,
   steps: []
 };
@@ -43,6 +44,12 @@ function editorLabel(editor) {
   return 'Not selected';
 }
 
+function packLabel(pack) {
+  if (pack === 'basic') return 'Basic starter';
+  if (pack === 'advanced') return 'Advanced starter';
+  return 'Not selected';
+}
+
 function learnBlock(title, body) {
   return `<details class="learn"><summary>${title}</summary>${body}</details>`;
 }
@@ -66,7 +73,7 @@ function hasConfiguredUrl(url) {
 function chooseOsStep() {
   const hasSlides = hasConfiguredUrl(distribution.teachingSlidesUrl);
   const slidesLink = hasSlides
-    ? `<p><a href="${distribution.teachingSlidesUrl}" target="_blank">Open workshop PowerPoint slides</a></p>`
+    ? `<p><a href="${distribution.teachingSlidesUrl}" target="_blank">Open powerpoint slides for Agentic Coding Introduction</a></p>`
     : '';
 
   return {
@@ -76,13 +83,13 @@ function chooseOsStep() {
       <h2>Page 1: Choose your computer type</h2>
       <p>Pick one to start your setup path.</p>
       <div class="callout callout--warn">This installation is for personal computers or computers where you have administrator install rights.</div>
-      ${slidesLink}
       <div class="choice-grid">
-        <button class="btn choice" data-os="windows">Windows</button>
-        <button class="btn choice" data-os="mac">Mac</button>
+        <button class="btn choice ${state.os === 'windows' ? 'is-selected' : ''}" data-os="windows">Windows</button>
+        <button class="btn choice ${state.os === 'mac' ? 'is-selected' : ''}" data-os="mac">Mac</button>
       </div>
       <p class="small">Current selection: <strong>${osLabel(state.os)}</strong></p>
       ${learnBlock('Learn more', '<p>This wizard combines quick actions with optional explanation. You can expand only what you need.</p>')}
+      ${slidesLink}
     `,
     onRender: () => {
       document.querySelectorAll('[data-os]').forEach(btn => {
@@ -106,11 +113,12 @@ function chooseToolStep() {
       <p>Next, install one AI agent: Codex, Claude Code, or both.</p>
       <p><strong>Paid accounts needed:</strong> <a href="https://chatgpt.com/" target="_blank">ChatGPT (OpenAI)</a> and/or <a href="https://claude.ai/" target="_blank">Claude (Anthropic)</a>, depending on whether you install Codex and/or Claude Code.</p>
       <div class="choice-grid">
-        <button class="btn choice" data-tool="codex">Codex only</button>
-        <button class="btn choice" data-tool="claude">Claude only</button>
-        <button class="btn choice" data-tool="both">Both</button>
+        <button class="btn choice ${state.tool === 'codex' ? 'is-selected' : ''}" data-tool="codex">Codex only</button>
+        <button class="btn choice ${state.tool === 'claude' ? 'is-selected' : ''}" data-tool="claude">Claude only</button>
+        <button class="btn choice ${state.tool === 'both' ? 'is-selected' : ''}" data-tool="both">Both</button>
       </div>
       <p class="small">Current selection: <strong>${toolLabel(state.tool)}</strong></p>
+      ${learnBlock('Learn more', '<p>Codex and Claude can both help in terminal workflows. You can install one now and add the other later.</p>')}
     `,
     onRender: () => {
       document.querySelectorAll('[data-tool]').forEach(btn => {
@@ -125,40 +133,97 @@ function chooseToolStep() {
   };
 }
 
-function chooseEditorStep() {
+function installEverythingStep() {
   const isMac = state.os === 'mac';
   const platformLabel = isMac ? 'Mac' : 'Windows';
-  const vscodeInstructions = isMac
-    ? '<ol><li>Download the macOS version.</li><li>Open the download.</li><li>Move VS Code to Applications.</li><li>Open VS Code.</li></ol>'
-    : '<ol><li>Download the Windows installer.</li><li>Run with default options.</li><li>Open VS Code.</li></ol>';
-  const cursorInstructions = isMac
-    ? '<ol><li>Download Cursor for macOS.</li><li>Open the download.</li><li>Move Cursor to Applications.</li><li>Open Cursor.</li></ol>'
-    : '<ol><li>Download Cursor for Windows.</li><li>Run with default options.</li><li>Open Cursor.</li></ol>';
-  const chosenEditorInstall =
-    state.editor === 'vscode'
-      ? vscodeInstructions
-      : state.editor === 'cursor'
-        ? cursorInstructions
-        : '';
+
+  // Build the winget / brew editor package name
+  const editorWinget = state.editor === 'cursor' ? 'Cursor.Cursor' : 'Microsoft.VisualStudioCode';
+  const editorBrew = state.editor === 'cursor' ? 'cursor' : 'visual-studio-code';
+  const editorName = editorLabel(state.editor) || 'your editor';
+
+  // Build agent npm commands
+  let agentCommands = '';
+  if (state.tool === 'codex') {
+    agentCommands = 'npm install -g @openai/codex\ncodex --login\ncodex';
+  } else if (state.tool === 'claude') {
+    agentCommands = 'npm install -g @anthropic-ai/claude-code\nclaude';
+  } else {
+    agentCommands = 'npm install -g @openai/codex\nnpm install -g @anthropic-ai/claude-code\ncodex --login\nclaude';
+  }
+
+  let fastBlock = '';
+  let manualBlock = '';
+  let verifyBlock = '';
+
+  if (isMac) {
+    fastBlock = `
+      <h3>Fast install (two commands)</h3>
+      <p>Open <strong>Terminal</strong> (Applications → Utilities → Terminal) and paste each line:</p>
+      <div class="code">xcode-select --install</div>
+      <p class="small">Wait for the popup to finish, then paste:</p>
+      <div class="code">brew install --cask ${editorBrew} && brew install node</div>
+      <p class="small">Don't have Homebrew? Install it first: <a href="https://brew.sh/" target="_blank">brew.sh</a></p>
+    `;
+    manualBlock = `
+      <h3>Manual install (if the above doesn't work)</h3>
+      <ol>
+        <li>Git: run <code>xcode-select --install</code> or download from <a href="https://git-scm.com/download/mac" target="_blank">git-scm.com</a></li>
+        <li>Node.js: <a href="https://nodejs.org/" target="_blank">nodejs.org</a> (choose <strong>LTS</strong>)</li>
+        <li>${editorName}: <a href="${state.editor === 'cursor' ? 'https://www.cursor.com/downloads' : 'https://code.visualstudio.com/Download'}" target="_blank">Download ${editorName}</a></li>
+      </ol>
+    `;
+  } else {
+    fastBlock = `
+      <h3>Fast install (one command)</h3>
+      <p>Open <strong>PowerShell</strong> and paste this single command:</p>
+      <div class="code">winget install ${editorWinget} Git.Git OpenJS.NodeJS.LTS --accept-package-agreements --accept-source-agreements</div>
+      <p class="small">This installs ${editorName}, Git, and Node.js in one step. After it finishes, <strong>close and reopen</strong> your terminal.</p>
+    `;
+    manualBlock = `
+      <h3>Manual install (if the above doesn't work)</h3>
+      <ol>
+        <li>${editorName}: <a href="${state.editor === 'cursor' ? 'https://www.cursor.com/downloads' : 'https://code.visualstudio.com/Download'}" target="_blank">Download ${editorName}</a></li>
+        <li>Git: <a href="https://git-scm.com/download/win" target="_blank">git-scm.com/download/win</a></li>
+        <li>Node.js: <a href="https://nodejs.org/" target="_blank">nodejs.org</a> (choose <strong>LTS</strong>)</li>
+      </ol>
+    `;
+  }
+
+  verifyBlock = `
+    <h3>Verify & install ${toolLabel(state.tool)}</h3>
+    <p>Open <strong>${editorName}</strong>, then open <strong>Terminal → New Terminal</strong> and paste:</p>
+    <div class="code">git --version\nnode -v\nnpm -v</div>
+    <p>If all three commands print a version number, paste these to install your AI agent:</p>
+    <div class="code">${agentCommands}</div>
+  `;
 
   return {
-    id: 'choose-editor',
-    title: 'Install Editor',
+    id: 'install-everything',
+    title: 'Install Everything',
     html: `
-      <h2>Page 3: Download VS Code or Cursor (${platformLabel})</h2>
-      <p>Choose one editor before continuing.</p>
+      <h2>Page 3: Install everything (${platformLabel})</h2>
+      <p>First, choose your editor:</p>
       <div class="choice-grid">
-        <button class="btn choice" data-editor="vscode">VS Code</button>
-        <button class="btn choice" data-editor="cursor">Cursor</button>
+        <button class="btn choice ${state.editor === 'vscode' ? 'is-selected' : ''}" data-editor="vscode">VS Code</button>
+        <button class="btn choice ${state.editor === 'cursor' ? 'is-selected' : ''}" data-editor="cursor">Cursor</button>
       </div>
       <p class="small">Current selection: <strong>${editorLabel(state.editor)}</strong></p>
-      <p><strong>Download links:</strong> <a href="https://code.visualstudio.com/Download" target="_blank">VS Code</a> or <a href="https://www.cursor.com/downloads" target="_blank">Cursor</a>.</p>
-      ${chosenEditorInstall}
+      ${state.editor ? fastBlock + manualBlock + verifyBlock : '<p>Select an editor above to see the install command.</p>'}
+      ${learnBlock('Learn more',
+        '<p>Git tracks file changes. Node and npm install the AI command-line tools. ' +
+        (isMac
+          ? 'Homebrew is a popular Mac package manager — <a href="https://brew.sh/" target="_blank">brew.sh</a>.'
+          : '<code>winget</code> is built into Windows and installs software from the command line.') +
+        ' Cursor is based on VS Code and adds built-in AI features. You can switch editors later.</p>'
+      )}
     `,
     onRender: () => {
       document.querySelectorAll('[data-editor]').forEach(btn => {
         btn.addEventListener('click', () => {
           state.editor = btn.dataset.editor;
+          buildSteps();
+          state.current = state.steps.findIndex(s => s.id === 'install-everything');
           render();
         });
       });
@@ -166,145 +231,89 @@ function chooseEditorStep() {
   };
 }
 
-function gitStep() {
-  const editor = editorLabel(state.editor);
-
-  if (state.os === 'mac') {
-    return {
-      id: 'install-git',
-      title: 'Install Git',
-      html: `
-        <h2>Page 4: Install Git (Mac)</h2>
-        <p>Git tracks file changes in your project.</p>
-        <div class="code">xcode-select --install</div>
-        <p>Alternative: <a href="https://git-scm.com/download/mac" target="_blank">https://git-scm.com/download/mac</a></p>
-        <p>In ${editor}, open <strong>Terminal -> New Terminal</strong>, then run:</p>
-        <div class="code">git --version</div>
-      `
-    };
-  }
-
-  return {
-    id: 'install-git',
-    title: 'Install Git',
-    html: `
-      <h2>Page 4: Install Git (Windows)</h2>
-      <p>Git tracks file changes in your project.</p>
-      <p>Install from: <a href="https://git-scm.com/download/win" target="_blank">https://git-scm.com/download/win</a></p>
-      <p>In ${editor}, open <strong>Terminal -> New Terminal</strong>, then run:</p>
-      <div class="code">git --version</div>
-    `
-  };
-}
-
-function nodeStep() {
-  const editor = editorLabel(state.editor);
-
-  return {
-    id: 'install-node',
-    title: 'Install Node.js',
-    html: `
-      <h2>Page 5: Install Node.js LTS (${osLabel(state.os)})</h2>
-      <p>Download from: <a href="https://nodejs.org/" target="_blank">https://nodejs.org/</a></p>
-      <ol>
-        <li>Install the LTS version.</li>
-        <li>In ${editor}, open <strong>Terminal -> New Terminal</strong>.</li>
-        <li>Run:</li>
-      </ol>
-      <div class="code">node -v\nnpm -v</div>
-    `
-  };
-}
-
-function installAgentStep() {
-  const editor = editorLabel(state.editor);
-  let commands = '';
-
-  if (state.tool === 'codex') {
-    commands = `<div class="code">npm install -g @openai/codex\ncodex --login\ncodex</div>`;
-  } else if (state.tool === 'claude') {
-    commands = `<div class="code">npm install -g @anthropic-ai/claude-code\nclaude</div>`;
-  } else {
-    commands = `<div class="code">npm install -g @openai/codex\ncodex --login\ncodex\n\nnpm install -g @anthropic-ai/claude-code\nclaude</div>`;
-  }
-
-  return {
-    id: 'install-agent',
-    title: 'Install AI Agent',
-    html: `
-      <h2>Page 6: Install ${toolLabel(state.tool)}</h2>
-      <p>Paste these commands into the <strong>${editor} terminal</strong> (Terminal -> New Terminal).</p>
-      ${commands}
-    `
-  };
-}
-
 function templateStep() {
   const editor = editorLabel(state.editor);
-  const advancedZip = githubZipUrlForPack('advanced');
-  const hasOneDrive = hasConfiguredUrl(distribution.oneDriveFolderUrlAdvanced);
+  const basicZipUrl = githubZipUrlForPack('basic');
+  const advancedZipUrl = githubZipUrlForPack('advanced');
+  const hasBasicOneDrive = hasConfiguredUrl(distribution.oneDriveFolderUrlBasic);
+  const hasAdvancedOneDrive = hasConfiguredUrl(distribution.oneDriveFolderUrlAdvanced);
 
-  const advancedZipBlock = advancedZip
-    ? `<p><a href="${advancedZip}" target="_blank">Download Advanced starter ZIP</a></p>`
-    : '<p><strong>Advanced ZIP not configured.</strong></p>';
-
-  const oneDriveBlock = hasOneDrive
-    ? `<p><a href="${distribution.oneDriveFolderUrlAdvanced}" target="_blank">Open Advanced starter on OneDrive</a></p>`
+  const basicZipBlock = basicZipUrl
+    ? `<p><a href="${basicZipUrl}" target="_blank">Download Basic starter ZIP</a></p>`
+    : '<p><strong>Basic ZIP link not configured yet.</strong></p>';
+  const advancedZipBlock = advancedZipUrl
+    ? `<p><a href="${advancedZipUrl}" target="_blank">Download Full starter ZIP</a></p>`
+    : '<p><strong>Full starter ZIP link not configured yet.</strong></p>';
+  const basicOneDriveBlock = hasBasicOneDrive
+    ? `<p><a href="${distribution.oneDriveFolderUrlBasic}" target="_blank">Open Basic starter on OneDrive</a></p>`
+    : '';
+  const advancedOneDriveBlock = hasAdvancedOneDrive
+    ? `<p><a href="${distribution.oneDriveFolderUrlAdvanced}" target="_blank">Open Full starter on OneDrive</a></p>`
     : '';
 
   return {
     id: 'template',
-    title: 'Advanced Starter Pack',
+    title: 'Basic Starter Folder Setup (Optional)',
     html: `
-      <h2>Page 7: Advanced starter pack</h2>
-      <p>This is the full setup with your preferred workflow and file structure.</p>
+      <h2>Page 4: Basic starter folder setup (optional)</h2>
+      <p>Start with Basic if you are new. You can try both.</p>
+
+      <h3>Basic starter folder</h3>
+      <p>This includes a folder with core <code>agents/</code> and <code>skills/</code>, plus a simple project template.</p>
+      ${basicZipBlock}
+      ${basicOneDriveBlock}
+
+      <h3>Full starter folder</h3>
+      <p>This includes everything in Basic plus profile-style preferences and workflow settings that may be helpful.</p>
+      <div class="callout callout--warn">
+        <p><strong>Warning for Full starter terminal presets:</strong></p>
+        <ul>
+          <li><strong>Claude (bypass):</strong> fewer confirmation checks. Use only in trusted project folders.</li>
+          <li><strong>Codex (bypass):</strong> can move quickly and make larger changes. Review commands and file edits before approving.</li>
+        </ul>
+      </div>
       ${advancedZipBlock}
-      ${oneDriveBlock}
-      <h3>What this pack includes</h3>
-      <ul>
-        <li><code>agents/</code>: specialist assistant instructions</li>
-        <li><code>skills/</code>: reusable workflows</li>
-        <li><code>memory/global_notes.md</code>: your workflow preferences</li>
-        <li><code>projects/_project_template/notes/</code>: numbered brainstorm files</li>
-        <li><code>templates/</code> and <code>standards/</code>: writing and project conventions</li>
-      </ul>
-      <p><strong>Example files:</strong></p>
-      <ul>
-        <li><code>projects/_project_template/notes/01_project_overview.md</code></li>
-        <li><code>projects/_project_template/notes/05_research_plan.md</code></li>
-        <li><code>memory/global_notes.md</code></li>
-        <li><code>skills/research-ideation-SKILL.md</code></li>
-      </ul>
+      ${advancedOneDriveBlock}
+      <p class="small">You can try both packs and keep whichever works best for you.</p>
+
       <ol>
-        <li>Download/extract the advanced starter.</li>
-        <li>In ${editor}: <strong>File -> Open Folder</strong>.</li>
+        <li>Download and extract the pack you want to test.</li>
+        <li>Open the folder in your IDE (for example: <strong>File > Open Folder</strong> in ${editor}).</li>
         <li>Select the extracted starter folder.</li>
       </ol>
+      ${learnBlock('Learn more', '<p>Once you have loaded a starter folder, ask your AI: "Please give me a quick overview of these folders and what each one is for."</p>')}
     `
   };
 }
 
 function profileStep() {
   const editor = editorLabel(state.editor);
+  const editorName = state.editor ? editor : 'your editor';
+  const shortcut = state.os === 'mac'
+    ? '<strong>Cmd + Shift + P</strong> on Mac'
+    : '<strong>Ctrl + Shift + P</strong> on Windows';
   const isCursor = state.editor === 'cursor';
   const selectedProfileUrl = isCursor ? distribution.cursorProfileUrl : distribution.vscodeProfileUrl;
   const hasProfileUrl = hasConfiguredUrl(selectedProfileUrl);
   const profileLink = hasProfileUrl
-    ? `<p><a href="${selectedProfileUrl}" target="_blank">Open ${editor} profile link</a></p>`
-    : `<p><strong>Profile link not configured yet.</strong> Set <code>distribution.${isCursor ? 'cursorProfileUrl' : 'vscodeProfileUrl'}</code> in <code>app.js</code>.</p>`;
+    ? `<p><a href="${selectedProfileUrl}">Download ${editorName} profile</a></p>`
+    : `<p><strong>Missing:</strong> ${editorName} profile link is not configured. Set <code>distribution.${isCursor ? 'cursorProfileUrl' : 'vscodeProfileUrl'}</code> in <code>app.js</code>.</p>`;
 
   return {
     id: 'profile',
-    title: 'Import Editor Profile',
+    title: 'Download Profile',
     html: `
-      <h2>Page 8: Import ${editor} profile (optional)</h2>
-      <p>Profile import is optional.</p>
+      <h2>Page 5: Download ${editorName} profile (optional)</h2>
+      <p>This step is optional. Use it to quickly load the same settings as the workshop.</p>
       ${profileLink}
       <ol>
-        <li>In ${editor}, press <strong>Ctrl+Shift+P</strong>.</li>
+        <li>Open ${editorName}.</li>
+        <li>Press ${shortcut}.</li>
         <li>Run <strong>Profiles: Import Profile</strong>.</li>
-        <li>Paste/select your profile link and import.</li>
+        <li>Paste the downloaded profile link and complete the import.</li>
       </ol>
+      <p class="small">You can skip this step and continue. Your setup will still work.</p>
+      ${learnBlock('Learn more', '<p>A profile imports settings and extensions quickly. It is optional, and you can always customize later.</p>')}
     `
   };
 }
@@ -314,10 +323,15 @@ function githubStep() {
     id: 'github',
     title: 'Pair with GitHub',
     html: `
-      <h2>Page 9: Pair with GitHub (recommended backup)</h2>
-      <p>GitHub gives free version history and backup for your project files.</p>
+      <h2>Page 6: Pair with GitHub (beginner backup)</h2>
+      <p>GitHub is a free backup for your project files and gives you version history.</p>
+      <p>If you are new, ask Claude or Codex to guide you step-by-step.</p>
       <p><a href="https://github.com/" target="_blank">Create or sign in to GitHub</a></p>
+      <p><strong>Try pasting this into Claude/Codex chat:</strong></p>
+      <div class="code">I want to back up and pair my folders with Git. I am a beginner. Please explain each step, why it matters, and give me the exact commands for my computer.</div>
+      <p><strong>If you want direct commands:</strong></p>
       <div class="code">git init\ngit add .\ngit commit -m "Initial backup"\ngit branch -M main\ngit remote add origin https://github.com/YOUR_USER/YOUR_REPO.git\ngit push -u origin main</div>
+      ${learnBlock('Learn more', '<p>GitHub is used by many software developers, so it links well with AI coding tools and workflows.</p>')}
     `
   };
 }
@@ -327,7 +341,7 @@ function appendixStep() {
     id: 'appendix',
     title: 'Glossary',
     html: `
-      <h2>Page 10: Quick glossary</h2>
+      <h2>Page 7: Quick glossary</h2>
       <ul>
         <li><strong>IDE:</strong> The app where you edit code (for example VS Code or Cursor).</li>
         <li><strong>Terminal:</strong> Text window where you run commands.</li>
@@ -340,6 +354,7 @@ function appendixStep() {
         <li><strong>ZIP:</strong> Compressed folder download.</li>
         <li><strong>Profile:</strong> Bundle of editor settings and extensions.</li>
       </ul>
+      ${learnBlock('Learn more', '<p>You can return to this glossary whenever a new term appears during setup.</p>')}
     `
   };
 }
@@ -348,7 +363,12 @@ function doneStep() {
   return {
     id: 'done',
     title: 'Done',
-    html: `<h2>Setup complete</h2><p>You finished the <strong>${osLabel(state.os)}</strong> path with <strong>${toolLabel(state.tool)}</strong> in <strong>${editorLabel(state.editor)}</strong>.</p>`
+    html: `
+      <h2>Setup complete</h2>
+      <p>You finished the <strong>${osLabel(state.os)}</strong> path with <strong>${toolLabel(state.tool)}</strong> in <strong>${editorLabel(state.editor)}</strong>.</p>
+      <p class="small">Press <strong>Restart</strong> to run the wizard again.</p>
+      ${learnBlock('Learn more', '<p>Next step: open your project folder and ask Codex or Claude for one small task to get comfortable.</p>')}
+    `
   };
 }
 
@@ -356,10 +376,7 @@ function buildSteps() {
   state.steps = [
     chooseOsStep(),
     chooseToolStep(),
-    chooseEditorStep(),
-    gitStep(),
-    nodeStep(),
-    installAgentStep(),
+    installEverythingStep(),
     templateStep(),
     profileStep(),
     githubStep(),
@@ -383,9 +400,19 @@ function render() {
   if (typeof step.onRender === 'function') step.onRender();
 
   backBtn.disabled = state.current === 0;
-  nextBtn.textContent = state.current === state.steps.length - 1 ? 'Finish' : 'Next';
+  nextBtn.textContent = state.current === state.steps.length - 1 ? 'Restart' : 'Next';
   progressBar.style.width = `${Math.round((state.current / (state.steps.length - 1)) * 100)}%`;
   renderNav();
+}
+
+function restartWizard() {
+  state.os = null;
+  state.tool = null;
+  state.editor = null;
+  state.pack = null;
+  state.current = 0;
+  buildSteps();
+  render();
 }
 
 backBtn.addEventListener('click', () => {
@@ -396,6 +423,11 @@ backBtn.addEventListener('click', () => {
 });
 
 nextBtn.addEventListener('click', () => {
+  if (state.current === state.steps.length - 1) {
+    restartWizard();
+    return;
+  }
+
   const step = state.steps[state.current];
   if (step.id === 'choose-os' && !state.os) {
     alert('Select Windows or Mac first.');
@@ -405,7 +437,7 @@ nextBtn.addEventListener('click', () => {
     alert('Select Codex, Claude, or Both first.');
     return;
   }
-  if (step.id === 'choose-editor' && !state.editor) {
+  if (step.id === 'install-everything' && !state.editor) {
     alert('Select VS Code or Cursor first.');
     return;
   }
