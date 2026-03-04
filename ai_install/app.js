@@ -325,7 +325,7 @@ function githubStep() {
     html: `
       <h2>Page 6: Pair with GitHub (beginner backup)</h2>
       <p>GitHub is a free backup for your project files and gives you version history.</p>
-      <p>If you are new, ask Claude or Codex to guide you step-by-step.</p>
+      <p>If you are new, ask your AI agent to guide you step-by-step.</p>
       <p><a href="https://github.com/" target="_blank">Create or sign in to GitHub</a></p>
       <p><strong>Try pasting this into your AI agent chat:</strong></p>
       <div class="code">I want to back up and pair my folders with Git. I am a beginner. Please explain each step, why it matters, and give me the exact commands for my computer.</div>
