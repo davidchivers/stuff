@@ -31,7 +31,7 @@ function osLabel(os) {
 function toolLabel(tool) {
   if (tool === 'codex') return 'Codex';
   if (tool === 'claude') return 'Claude Code';
-  if (tool === 'both') return 'Codex + Claude Code';
+  if (tool === 'gemini') return 'Gemini';
   return 'Not selected';
 }
 
@@ -98,12 +98,12 @@ function chooseToolStep() {
     title: 'Choose AI Agent',
     html: `
       <h2>Page 2: Choose your AI agent</h2>
-      <p>Next, install one AI agent: Codex, Claude Code, or both.</p>
-      <p><strong>Paid accounts needed:</strong> <a href="https://chatgpt.com/" target="_blank">ChatGPT (OpenAI)</a> and/or <a href="https://claude.ai/" target="_blank">Claude (Anthropic)</a>, depending on whether you install Codex and/or Claude Code.</p>
+      <p>Next, install one AI agent: Codex, Claude Code, or Gemini.</p>
+      <p><strong>Paid accounts needed:</strong> <a href="https://chatgpt.com/" target="_blank">ChatGPT (OpenAI)</a>, <a href="https://claude.ai/" target="_blank">Claude (Anthropic)</a>, or <a href="https://gemini.google.com/" target="_blank">Gemini (Google)</a>, depending on which agent you install.</p>
       <div class="choice-grid">
         <button class="btn choice" data-tool="codex">Codex only</button>
         <button class="btn choice" data-tool="claude">Claude only</button>
-        <button class="btn choice" data-tool="both">Both</button>
+        <button class="btn choice" data-tool="gemini">Gemini</button>
       </div>
       <p class="small">Current selection: <strong>${toolLabel(state.tool)}</strong></p>
     `,
@@ -220,7 +220,7 @@ function installAgentStep() {
   } else if (state.tool === 'claude') {
     commands = `<div class="code">npm install -g @anthropic-ai/claude-code\nclaude</div>`;
   } else {
-    commands = `<div class="code">npm install -g @openai/codex\ncodex --login\ncodex\n\nnpm install -g @anthropic-ai/claude-code\nclaude</div>`;
+    commands = `<div class="code">npm install -g @google/gemini-cli\ngemini</div>`;
   }
 
   return {
@@ -397,7 +397,7 @@ nextBtn.addEventListener('click', () => {
     return;
   }
   if (step.id === 'choose-tool' && !state.tool) {
-    alert('Select Codex, Claude, or Both first.');
+    alert('Select Codex, Claude, or Gemini first.');
     return;
   }
   if (step.id === 'choose-editor' && !state.editor) {

@@ -34,7 +34,7 @@ function osLabel(os) {
 function toolLabel(tool) {
   if (tool === 'codex') return 'Codex';
   if (tool === 'claude') return 'Claude Code';
-  if (tool === 'both') return 'Codex + Claude Code';
+  if (tool === 'gemini') return 'Gemini';
   return 'Not selected';
 }
 
@@ -110,15 +110,15 @@ function chooseToolStep() {
     title: 'Choose AI Agent',
     html: `
       <h2>Page 2: Choose your AI agent</h2>
-      <p>Next, install one AI agent: Codex, Claude Code, or both.</p>
-      <p><strong>Paid accounts needed:</strong> <a href="https://chatgpt.com/" target="_blank">ChatGPT (OpenAI)</a> and/or <a href="https://claude.ai/" target="_blank">Claude (Anthropic)</a>, depending on whether you install Codex and/or Claude Code.</p>
+      <p>Next, install one AI agent: Codex, Claude Code, or Gemini.</p>
+      <p><strong>Paid accounts needed:</strong> <a href="https://chatgpt.com/" target="_blank">ChatGPT (OpenAI)</a>, <a href="https://claude.ai/" target="_blank">Claude (Anthropic)</a>, or <a href="https://gemini.google.com/" target="_blank">Gemini (Google)</a>, depending on which agent you install.</p>
       <div class="choice-grid">
         <button class="btn choice ${state.tool === 'codex' ? 'is-selected' : ''}" data-tool="codex">Codex only</button>
         <button class="btn choice ${state.tool === 'claude' ? 'is-selected' : ''}" data-tool="claude">Claude only</button>
-        <button class="btn choice ${state.tool === 'both' ? 'is-selected' : ''}" data-tool="both">Both</button>
+        <button class="btn choice ${state.tool === 'gemini' ? 'is-selected' : ''}" data-tool="gemini">Gemini</button>
       </div>
       <p class="small">Current selection: <strong>${toolLabel(state.tool)}</strong></p>
-      ${learnBlock('Learn more', '<p>Codex and Claude can both help in terminal workflows. You can install one now and add the other later.</p>')}
+      ${learnBlock('Learn more', '<p>Codex, Claude Code, and Gemini can all help in terminal workflows. You can install one now and add another later.</p>')}
     `,
     onRender: () => {
       document.querySelectorAll('[data-tool]').forEach(btn => {
@@ -149,7 +149,7 @@ function installEverythingStep() {
   } else if (state.tool === 'claude') {
     agentCommands = 'npm install -g @anthropic-ai/claude-code\nclaude';
   } else {
-    agentCommands = 'npm install -g @openai/codex\nnpm install -g @anthropic-ai/claude-code\ncodex --login\nclaude';
+    agentCommands = 'npm install -g @google/gemini-cli\ngemini';
   }
 
   let fastBlock = '';
@@ -327,7 +327,7 @@ function githubStep() {
       <p>GitHub is a free backup for your project files and gives you version history.</p>
       <p>If you are new, ask Claude or Codex to guide you step-by-step.</p>
       <p><a href="https://github.com/" target="_blank">Create or sign in to GitHub</a></p>
-      <p><strong>Try pasting this into Claude/Codex chat:</strong></p>
+      <p><strong>Try pasting this into your AI agent chat:</strong></p>
       <div class="code">I want to back up and pair my folders with Git. I am a beginner. Please explain each step, why it matters, and give me the exact commands for my computer.</div>
       <p><strong>If you want direct commands:</strong></p>
       <div class="code">git init\ngit add .\ngit commit -m "Initial backup"\ngit branch -M main\ngit remote add origin https://github.com/YOUR_USER/YOUR_REPO.git\ngit push -u origin main</div>
@@ -367,7 +367,7 @@ function doneStep() {
       <h2>Setup complete</h2>
       <p>You finished the <strong>${osLabel(state.os)}</strong> path with <strong>${toolLabel(state.tool)}</strong> in <strong>${editorLabel(state.editor)}</strong>.</p>
       <p class="small">Press <strong>Restart</strong> to run the wizard again.</p>
-      ${learnBlock('Learn more', '<p>Next step: open your project folder and ask Codex or Claude for one small task to get comfortable.</p>')}
+      ${learnBlock('Learn more', '<p>Next step: open your project folder and ask your AI agent for one small task to get comfortable.</p>')}
     `
   };
 }
@@ -434,7 +434,7 @@ nextBtn.addEventListener('click', () => {
     return;
   }
   if (step.id === 'choose-tool' && !state.tool) {
-    alert('Select Codex, Claude, or Both first.');
+    alert('Select Codex, Claude, or Gemini first.');
     return;
   }
   if (step.id === 'install-everything' && !state.editor) {
