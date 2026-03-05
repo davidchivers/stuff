@@ -1,6 +1,6 @@
 ﻿const state = {
   os: null,
-  tool: null,
+  tool: 'gemini',
   editor: null,
   pack: null,
   current: 0,
@@ -16,7 +16,7 @@ const distribution = {
   },
   oneDriveFolderUrlBasic: '',
   oneDriveFolderUrlAdvanced: '',
-  vscodeProfileUrl: '',
+  vscodeProfileUrl: 'https://vscode.dev/editor/profile/github/0cf6696b0aa251846a9b1ed761267f88',
   cursorProfileUrl: 'cursor://profile/github/0cf6696b0aa251846a9b1ed761267f88',
   teachingSlidesUrl: 'https://1drv.ms/p/c/34def9d130aed1a9/IQBwHWaK-I16T7yC88Wf80p5AdKUKL3gW8454f3iwOOWwCk?e=lDNPKN'
 };
@@ -27,14 +27,67 @@ const backBtn = document.getElementById('backBtn');
 const nextBtn = document.getElementById('nextBtn');
 const progressBar = document.getElementById('progressBar');
 
+function attachCopyButtons() {
+  content.querySelectorAll('.code').forEach(block => {
+    if (block.parentElement && block.parentElement.classList.contains('code-wrap')) return;
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'code-wrap';
+    block.parentNode.insertBefore(wrapper, block);
+    wrapper.appendChild(block);
+
+    const copyBtn = document.createElement('button');
+    copyBtn.type = 'button';
+    copyBtn.className = 'copy-btn';
+    copyBtn.textContent = 'Copy';
+
+    copyBtn.addEventListener('click', async () => {
+      const text = block.innerText.replace(/\u00a0/g, ' ').trim();
+      let copied = false;
+
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        try {
+          await navigator.clipboard.writeText(text);
+          copied = true;
+        } catch (_) {
+          copied = false;
+        }
+      }
+
+      if (!copied) {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.left = '-9999px';
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        try {
+          copied = document.execCommand('copy');
+        } catch (_) {
+          copied = false;
+        }
+        document.body.removeChild(ta);
+      }
+
+      copyBtn.textContent = copied ? 'Copied' : 'Copy failed';
+      copyBtn.disabled = true;
+      setTimeout(() => {
+        copyBtn.textContent = 'Copy';
+        copyBtn.disabled = false;
+      }, 1200);
+    });
+
+    wrapper.appendChild(copyBtn);
+  });
+}
+
 function osLabel(os) {
   return os === 'windows' ? 'Windows' : os === 'mac' ? 'Mac' : 'Not selected';
 }
 
 function toolLabel(tool) {
-  if (tool === 'codex') return 'Codex';
-  if (tool === 'claude') return 'Claude Code';
-  if (tool === 'gemini') return 'Gemini';
+  if (tool === 'gemini') return 'Gemini CLI';
   return 'Not selected';
 }
 
@@ -110,22 +163,20 @@ function chooseToolStep() {
     title: 'Choose AI Agent',
     html: `
       <h2>Page 2: Choose your AI agent</h2>
-      <p>Next, install one AI agent: Codex, Claude Code, or Gemini.</p>
-      <p><strong>Paid accounts needed:</strong> <a href="https://chatgpt.com/" target="_blank">ChatGPT (OpenAI)</a>, <a href="https://claude.ai/" target="_blank">Claude (Anthropic)</a>, or <a href="https://gemini.google.com/" target="_blank">Gemini (Google)</a>, depending on which agent you install.</p>
+      <p>This installer uses <strong>Gemini CLI</strong>.</p>
+      <p><strong>Account needed:</strong> a Google account and a Gemini API key from <a href="https://aistudio.google.com/apikey" target="_blank">Google AI Studio</a>.</p>
       <div class="choice-grid">
-        <button class="btn choice ${state.tool === 'codex' ? 'is-selected' : ''}" data-tool="codex">Codex only</button>
-        <button class="btn choice ${state.tool === 'claude' ? 'is-selected' : ''}" data-tool="claude">Claude only</button>
-        <button class="btn choice ${state.tool === 'gemini' ? 'is-selected' : ''}" data-tool="gemini">Gemini</button>
+        <button class="btn choice is-selected" data-tool="gemini">Gemini CLI</button>
       </div>
       <p class="small">Current selection: <strong>${toolLabel(state.tool)}</strong></p>
-      ${learnBlock('Learn more', '<p>Codex, Claude Code, and Gemini can all help in terminal workflows. You can install one now and add another later.</p>')}
+      ${learnBlock('Learn more', '<p>Gemini CLI runs in your terminal and can help with coding and setup tasks.</p>')}
     `,
     onRender: () => {
       document.querySelectorAll('[data-tool]').forEach(btn => {
         btn.addEventListener('click', () => {
           state.tool = btn.dataset.tool;
           buildSteps();
-          state.current = state.steps.findIndex(s => s.id === 'choose-editor');
+          state.current = state.steps.findIndex(s => s.id === 'install-prereqs');
           render();
         });
       });
@@ -142,19 +193,9 @@ function installEverythingStep() {
   const editorBrew = state.editor === 'cursor' ? 'cursor' : 'visual-studio-code';
   const editorName = editorLabel(state.editor) || 'your editor';
 
-  // Build agent npm commands
-  let agentCommands = '';
-  if (state.tool === 'codex') {
-    agentCommands = 'npm install -g @openai/codex\ncodex --login\ncodex';
-  } else if (state.tool === 'claude') {
-    agentCommands = 'npm install -g @anthropic-ai/claude-code\nclaude';
-  } else {
-    agentCommands = 'npm install -g @google/gemini-cli\ngemini';
-  }
-
   let fastBlock = '';
   let manualBlock = '';
-  let verifyBlock = '';
+  let manualDropdown = '';
 
   if (isMac) {
     fastBlock = `
@@ -166,7 +207,6 @@ function installEverythingStep() {
       <p class="small">Don't have Homebrew? Install it first: <a href="https://brew.sh/" target="_blank">brew.sh</a></p>
     `;
     manualBlock = `
-      <h3>Manual install (if the above doesn't work)</h3>
       <ol>
         <li>Git: run <code>xcode-select --install</code> or download from <a href="https://git-scm.com/download/mac" target="_blank">git-scm.com</a></li>
         <li>Node.js: <a href="https://nodejs.org/" target="_blank">nodejs.org</a> (choose <strong>LTS</strong>)</li>
@@ -176,12 +216,15 @@ function installEverythingStep() {
   } else {
     fastBlock = `
       <h3>Fast install (one command)</h3>
-      <p>Open <strong>PowerShell</strong> and paste this single command:</p>
+      <ol>
+        <li>Click the <strong>Start</strong> button (or press the Windows key).</li>
+        <li>Type <strong>PowerShell</strong> in the search bar.</li>
+        <li>Open <strong>Windows PowerShell</strong>.</li>
+      </ol>
+      <p><strong>Run this command:</strong></p>
       <div class="code">winget install ${editorWinget} Git.Git OpenJS.NodeJS.LTS --accept-package-agreements --accept-source-agreements</div>
-      <p class="small">This installs ${editorName}, Git, and Node.js in one step. After it finishes, <strong>close and reopen</strong> your terminal.</p>
     `;
     manualBlock = `
-      <h3>Manual install (if the above doesn't work)</h3>
       <ol>
         <li>${editorName}: <a href="${state.editor === 'cursor' ? 'https://www.cursor.com/downloads' : 'https://code.visualstudio.com/Download'}" target="_blank">Download ${editorName}</a></li>
         <li>Git: <a href="https://git-scm.com/download/win" target="_blank">git-scm.com/download/win</a></li>
@@ -190,44 +233,113 @@ function installEverythingStep() {
     `;
   }
 
-  verifyBlock = `
-    <h3>Verify & install ${toolLabel(state.tool)}</h3>
-    <p>Open <strong>${editorName}</strong>, then open <strong>Terminal → New Terminal</strong> and paste:</p>
-    <div class="code">git --version\nnode -v\nnpm -v</div>
-    <p>If all three commands print a version number, paste these to install your AI agent:</p>
-    <div class="code">${agentCommands}</div>
+  manualDropdown = `
+    <details class="learn">
+      <summary>Not working? Use manual install</summary>
+      <h3>Manual install</h3>
+      ${manualBlock}
+    </details>
   `;
 
   return {
-    id: 'install-everything',
-    title: 'Install Everything',
+    id: 'install-prereqs',
+    title: 'Install prerequisites',
     html: `
-      <h2>Page 3: Install everything (${platformLabel})</h2>
+      <h2>Page 3: Install prerequisites (${platformLabel})</h2>
       <p>First, choose your editor:</p>
       <div class="choice-grid">
         <button class="btn choice ${state.editor === 'vscode' ? 'is-selected' : ''}" data-editor="vscode">VS Code</button>
         <button class="btn choice ${state.editor === 'cursor' ? 'is-selected' : ''}" data-editor="cursor">Cursor</button>
       </div>
       <p class="small">Current selection: <strong>${editorLabel(state.editor)}</strong></p>
-      ${state.editor ? fastBlock + manualBlock + verifyBlock : '<p>Select an editor above to see the install command.</p>'}
-      ${learnBlock('Learn more',
-        '<p>Git tracks file changes. Node and npm install the AI command-line tools. ' +
-        (isMac
-          ? 'Homebrew is a popular Mac package manager — <a href="https://brew.sh/" target="_blank">brew.sh</a>.'
-          : '<code>winget</code> is built into Windows and installs software from the command line.') +
-        ' Cursor is based on VS Code and adds built-in AI features. You can switch editors later.</p>'
-      )}
+      ${state.editor ? fastBlock + manualDropdown : '<p>Select an editor above to see the install command.</p>'}
+      ${state.editor ? '<p><strong>Next page:</strong> restart terminal, then install your AI agent.</p>' : ''}
     `,
     onRender: () => {
       document.querySelectorAll('[data-editor]').forEach(btn => {
         btn.addEventListener('click', () => {
           state.editor = btn.dataset.editor;
           buildSteps();
-          state.current = state.steps.findIndex(s => s.id === 'install-everything');
+          state.current = state.steps.findIndex(s => s.id === 'install-prereqs');
           render();
         });
       });
     }
+  };
+}
+
+function restartTerminalStep() {
+  const editorName = editorLabel(state.editor) || 'your editor';
+
+  return {
+    id: 'restart-terminal',
+    title: 'Restart terminal',
+    html: `
+      <h2>Page 4: Restart terminal</h2>
+      <p>Before page 5, restart your terminal:</p>
+      <ol>
+        <li>Close the terminal window/tab you used in step 3.</li>
+        <li>Open a fresh terminal: <strong>Terminal → New Terminal</strong>.</li>
+      </ol>
+      <p class="small">No need to restart ${editorName}.</p>
+    `
+  };
+}
+
+function installAgentStep() {
+  const editorName = editorLabel(state.editor) || 'your editor';
+  const agentCommands = 'npm install -g @google/gemini-cli@latest';
+
+  return {
+    id: 'install-agent',
+    title: 'Install AI agent',
+    html: `
+      <h2>Page 5: Install ${toolLabel(state.tool)}</h2>
+      <p>Step 3 installed prerequisites and step 4 restarted your terminal. Now install Gemini CLI.</p>
+      <p>Open <strong>${editorName}</strong>, then open <strong>Terminal → New Terminal</strong> and run:</p>
+      <div class="code">${agentCommands}</div>
+      <p class="small">You can run this same command any time later to update to the latest Gemini CLI.</p>
+      <p><strong>Next page:</strong> set your Gemini API key, then run <code>gemini</code>.</p>
+    `
+  };
+}
+
+function geminiApiKeyStep() {
+  const isMac = state.os === 'mac';
+  const setTempKey = isMac
+    ? 'export GEMINI_API_KEY="PASTE_KEY_HERE"'
+    : '$env:GEMINI_API_KEY="PASTE_KEY_HERE"';
+  const setPersistentKey = isMac
+    ? "echo 'export GEMINI_API_KEY=\"PASTE_KEY_HERE\"' >> ~/.zshrc\nsource ~/.zshrc"
+    : 'setx GEMINI_API_KEY "PASTE_KEY_HERE"';
+  const verifyKey = isMac
+    ? 'echo $GEMINI_API_KEY'
+    : 'echo $env:GEMINI_API_KEY';
+
+  return {
+    id: 'gemini-api-key',
+    title: 'Set Gemini API key',
+    html: `
+      <h2>Page 6: Set your Gemini API key (simple)</h2>
+      <ol>
+        <li>Open <a href="https://aistudio.google.com/apikey" target="_blank">Google AI Studio API keys</a>.</li>
+        <li>Sign in with your Google account.</li>
+        <li>Click <strong>Create API key</strong>.</li>
+        <li>Copy the new key.</li>
+      </ol>
+      <p>Back in terminal, set it for this session:</p>
+      <div class="code">${setTempKey}</div>
+      <p>Optional: set it permanently so it is ready next time:</p>
+      <div class="code">${setPersistentKey}</div>
+      <p>Check it is set:</p>
+      <div class="code">${verifyKey}</div>
+      <p>Then start Gemini:</p>
+      <div class="code">gemini</div>
+      <div class="callout callout--warn">
+        <strong>Important:</strong> never paste API keys into GitHub commits or shared files.
+      </div>
+      ${learnBlock('Learn more', '<p>If you use <code>setx</code> on Windows, close and reopen terminal to load it into new sessions.</p>')}
+    `
   };
 }
 
@@ -253,9 +365,9 @@ function templateStep() {
 
   return {
     id: 'template',
-    title: 'Basic Starter Folder Setup (Optional)',
-    html: `
-      <h2>Page 4: Basic starter folder setup (optional)</h2>
+      title: 'Basic Starter Folder Setup (Optional)',
+      html: `
+      <h2>Page 7: Basic starter folder setup (optional)</h2>
       <p>Start with Basic if you are new. You can try both.</p>
 
       <h3>Basic starter folder</h3>
@@ -268,8 +380,8 @@ function templateStep() {
       <div class="callout callout--warn">
         <p><strong>Warning for Full starter terminal presets:</strong></p>
         <ul>
-          <li><strong>Claude (bypass):</strong> fewer confirmation checks. Use only in trusted project folders.</li>
-          <li><strong>Codex (bypass):</strong> can move quickly and make larger changes. Review commands and file edits before approving.</li>
+          <li><strong>AI terminal tools can run commands and edit files quickly.</strong></li>
+          <li><strong>Always review commands and file edits before approving.</strong></li>
         </ul>
       </div>
       ${advancedZipBlock}
@@ -296,14 +408,14 @@ function profileStep() {
   const selectedProfileUrl = isCursor ? distribution.cursorProfileUrl : distribution.vscodeProfileUrl;
   const hasProfileUrl = hasConfiguredUrl(selectedProfileUrl);
   const profileLink = hasProfileUrl
-    ? `<p><a href="${selectedProfileUrl}">Download ${editorName} profile</a></p>`
-    : `<p><strong>Missing:</strong> ${editorName} profile link is not configured. Set <code>distribution.${isCursor ? 'cursorProfileUrl' : 'vscodeProfileUrl'}</code> in <code>app.js</code>.</p>`;
+    ? `<p>Use this profile link:</p><div class="code">${selectedProfileUrl}</div>`
+    : `<p>No ${editorName} profile link is configured yet. This step is optional, so you can skip it and continue.</p>`;
 
   return {
     id: 'profile',
-    title: 'Download Profile',
+    title: 'Import Profile',
     html: `
-      <h2>Page 5: Download ${editorName} profile (optional)</h2>
+      <h2>Page 8: Import ${editorName} profile (optional)</h2>
       <p>This step is optional. Use it to quickly load the same settings as the workshop.</p>
       ${profileLink}
       <ol>
@@ -323,11 +435,11 @@ function githubStep() {
     id: 'github',
     title: 'Pair with GitHub',
     html: `
-      <h2>Page 6: Pair with GitHub (beginner backup)</h2>
+      <h2>Page 9: Pair with GitHub (beginner backup)</h2>
       <p>GitHub is a free backup for your project files and gives you version history.</p>
-      <p>If you are new, ask your AI agent to guide you step-by-step.</p>
+      <p>If you are new, ask Gemini to guide you step-by-step.</p>
       <p><a href="https://github.com/" target="_blank">Create or sign in to GitHub</a></p>
-      <p><strong>Try pasting this into your AI agent chat:</strong></p>
+      <p><strong>Try pasting this into Gemini:</strong></p>
       <div class="code">I want to back up and pair my folders with Git. I am a beginner. Please explain each step, why it matters, and give me the exact commands for my computer.</div>
       <p><strong>If you want direct commands:</strong></p>
       <div class="code">git init\ngit add .\ngit commit -m "Initial backup"\ngit branch -M main\ngit remote add origin https://github.com/YOUR_USER/YOUR_REPO.git\ngit push -u origin main</div>
@@ -341,7 +453,7 @@ function appendixStep() {
     id: 'appendix',
     title: 'Glossary',
     html: `
-      <h2>Page 7: Quick glossary</h2>
+      <h2>Page 10: Quick glossary</h2>
       <ul>
         <li><strong>IDE:</strong> The app where you edit code (for example VS Code or Cursor).</li>
         <li><strong>Terminal:</strong> Text window where you run commands.</li>
@@ -367,7 +479,7 @@ function doneStep() {
       <h2>Setup complete</h2>
       <p>You finished the <strong>${osLabel(state.os)}</strong> path with <strong>${toolLabel(state.tool)}</strong> in <strong>${editorLabel(state.editor)}</strong>.</p>
       <p class="small">Press <strong>Restart</strong> to run the wizard again.</p>
-      ${learnBlock('Learn more', '<p>Next step: open your project folder and ask your AI agent for one small task to get comfortable.</p>')}
+      ${learnBlock('Learn more', '<p>Next step: open your project folder and ask Gemini for one small task to get comfortable.</p>')}
     `
   };
 }
@@ -377,6 +489,9 @@ function buildSteps() {
     chooseOsStep(),
     chooseToolStep(),
     installEverythingStep(),
+    restartTerminalStep(),
+    installAgentStep(),
+    geminiApiKeyStep(),
     templateStep(),
     profileStep(),
     githubStep(),
@@ -397,6 +512,7 @@ function renderNav() {
 function render() {
   const step = state.steps[state.current];
   content.innerHTML = step.html;
+  attachCopyButtons();
   if (typeof step.onRender === 'function') step.onRender();
 
   backBtn.disabled = state.current === 0;
@@ -407,7 +523,7 @@ function render() {
 
 function restartWizard() {
   state.os = null;
-  state.tool = null;
+  state.tool = 'gemini';
   state.editor = null;
   state.pack = null;
   state.current = 0;
@@ -433,11 +549,7 @@ nextBtn.addEventListener('click', () => {
     alert('Select Windows or Mac first.');
     return;
   }
-  if (step.id === 'choose-tool' && !state.tool) {
-    alert('Select Codex, Claude, or Gemini first.');
-    return;
-  }
-  if (step.id === 'install-everything' && !state.editor) {
+  if (step.id === 'install-prereqs' && !state.editor) {
     alert('Select VS Code or Cursor first.');
     return;
   }
