@@ -15,7 +15,8 @@ const distribution = {
   oneDriveFolderUrlAdvanced: '',
   vscodeProfileUrl: '',
   cursorProfileUrl: 'cursor://profile/github/0cf6696b0aa251846a9b1ed761267f88',
-  teachingSlidesUrl: 'https://1drv.ms/p/c/34def9d130aed1a9/IQBwHWaK-I16T7yC88Wf80p5AdKUKL3gW8454f3iwOOWwCk?e=lDNPKN'
+  teachingSlidesUrl: 'https://1drv.ms/p/c/34def9d130aed1a9/IQBwHWaK-I16T7yC88Wf80p5AdKUKL3gW8454f3iwOOWwCk?e=lDNPKN',
+  githubEducationUrl: 'https://education.github.com/pack'
 };
 
 const nav = document.getElementById('stepNav');
@@ -63,6 +64,10 @@ function chooseOsStep() {
   const slidesLink = hasSlides
     ? `<p><a href="${distribution.teachingSlidesUrl}" target="_blank">Open workshop PowerPoint slides</a></p>`
     : '';
+  const hasGithubEdu = hasConfiguredUrl(distribution.githubEducationUrl);
+  const githubEduLink = hasGithubEdu
+    ? `<p><a href="${distribution.githubEducationUrl}" target="_blank">Free AI models for students/teachers (GitHub Education Pack)</a></p>`
+    : '';
 
   return {
     id: 'choose-os',
@@ -72,6 +77,7 @@ function chooseOsStep() {
       <p>Pick one to start your setup path.</p>
       <div class="callout callout--warn">This installation is for personal computers or computers where you have administrator install rights.</div>
       ${slidesLink}
+      ${githubEduLink}
       <div class="choice-grid">
         <button class="btn choice" data-os="windows">Windows</button>
         <button class="btn choice" data-os="mac">Mac</button>
